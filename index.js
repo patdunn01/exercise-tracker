@@ -25,7 +25,7 @@ const exerciseSchema = mongoose.Schema({
     username: String,
     description: String,
     duration: Number,
-    date: String,
+    date: Date,
     userId: String,
 });
 
@@ -43,12 +43,13 @@ app.get("/", (req, res) => {
 
 app.get("/api/users", async (req, res) => {
   const users = await User.find();
-  res.send(users);
+  res.send([users]);
 });
 
 //POST /api/users username
 
 app.post("/api/users", async (req, res) => {
+  console.log(req.body)
   const username = req.body.username;
   const foundUser = await User.findOne({ username });
 
@@ -63,8 +64,10 @@ app.post("/api/users", async (req, res) => {
 });
 
 app.post("/api/users/:id/exercises", async (req, res) => {
+  console.log(req.params);
+  console.log(req.body);
   let { description, duration, date } = req.body;
-  const userId = req.body[":_id"];
+  const userId = req.params.id;
   const foundUser = await User.findById(userId);
 
   if (!foundUser) {
@@ -76,12 +79,6 @@ app.post("/api/users/:id/exercises", async (req, res) => {
   } else {
     date = new Date(date);
   }
-
-  // username: String,
-  // description: String,
-  // duration: Number,
-  // date: String,
-  // userId: String,
 
   await Exercise.create({
     username: foundUser.username,
@@ -106,18 +103,35 @@ app.get('/api/users/:userId/exercises', async function(req, res) {
 })
 
 app.get('/api/users/:userId/logs', async function(req, res) {
+  let { from, to, limit } = req.query;
   const userId = req.params.userId
   const foundUser = await User.findById(userId);
 
   if (!foundUser) {
     res.send({ message: "no such user" });
   }
-  let exercises = await Exercise.find({ userId }) 
+
+  let filter = { userId }
+  let dateFilter = {}
+  if(from){
+    dateFilter['$gte'] = new Date(from)
+  }
+  if(to){
+    dateFilter['$lte'] = new Date(to)
+  }
+  if(from || to){
+    filter.date = dateFilter;
+  }
+  if(!limit){
+    limit = 100;
+  }
+
+  let exercises = await Exercise.find(filter).limit(limit) 
   exercises = exercises.map((exercise) => {
     return {
       description: exercise.description,
       duration: exercise.duration,
-      date: exercise.date,
+      date: exercise.date.toDateString(),
     }
   })
 
